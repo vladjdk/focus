@@ -82,6 +82,8 @@ function isTyping(target: EventTarget | null) {
       ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))
   );
 }
+// Stands in for the four keys behind ⌥1-4, labelled for the viewer's layout.
+const QUAD_KEYS = "quad-keys";
 const SHORTCUTS: { title: string; keys: [string[], string][] }[] = [
   {
     title: "Tasks",
@@ -112,14 +114,48 @@ const SHORTCUTS: { title: string; keys: [string[], string][] }[] = [
     ],
   },
   {
+    title: "In the editor",
+    keys: [
+      [["⌥", QUAD_KEYS], "Move the task to that quadrant"],
+      [["⌘", "Enter"], "Save"],
+    ],
+  },
+  {
     title: "Anywhere",
     keys: [
       [["?"], "Show these shortcuts"],
-      [["⌘", "Enter"], "Save while editing"],
       [["Esc"], "Close a dialog"],
     ],
   },
 ];
+
+// Unsaved editor contents, kept in this browser so closing the editor or the
+// page never loses typing. Keyed by task id, or NEW_DRAFT for a new task.
+const DRAFTS_KEY = "focus-drafts",
+  NEW_DRAFT = "new";
+type Drafts = Record<string, Task>;
+function loadDrafts(): Drafts {
+  try {
+    return JSON.parse(localStorage.getItem(DRAFTS_KEY) ?? "{}") ?? {};
+  } catch {
+    return {};
+  }
+}
+const EDITABLE = ["title", "notes", "q", "due", "sources", "links"] as const;
+function sameEdits(a: Task, b: Task) {
+  return EDITABLE.every(
+    (k) => JSON.stringify(a[k] ?? "") === JSON.stringify(b[k] ?? ""),
+  );
+}
+function isBlank(t: Task) {
+  return (
+    !t.title.trim() &&
+    !t.notes.trim() &&
+    !t.due &&
+    !t.sources?.length &&
+    !t.links?.length
+  );
+}
 
 function cleanLinks(items: Link[] = []) {
   return items
@@ -230,12 +266,67 @@ export default function Home() {
     [bump, setBump] = useState(false),
     [openDone, setOpenDone] = useState<string | null>(null),
     [help, setHelp] = useState(false),
+    // What the physical 1-4 keys type on this keyboard layout, for labels.
+    [digitKeys, setDigitKeys] = useState(["1", "2", "3", "4"]),
+    [drafts, setDrafts] = useState<Drafts>(loadDrafts),
     [now, setNow] = useState(() => Date.now());
   const cardEls = useRef(new Map<string, HTMLElement>()),
     hovered = useRef<string | null>(null),
     completedBtn = useRef<HTMLButtonElement>(null);
   const animating = (id: string) =>
     completing.includes(id) || tossing.includes(id);
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFTS_KEY, JSON.stringify(drafts));
+    } catch {}
+  }, [drafts]);
+  function setDraft(key: string, t: Task | null) {
+    setDrafts((d) => {
+      if (!t && !(key in d)) return d;
+      const next = { ...d };
+      if (t) next[key] = t;
+      else delete next[key];
+      return next;
+    });
+  }
+  // Every change in the editor is kept as a draft until it's saved or discarded.
+  useEffect(() => {
+    if (!edit) return;
+    const saved = tasksRef.current.find((t) => t.id === edit.id);
+    if (saved) setDraft(edit.id, sameEdits(edit, saved) ? null : edit);
+    else setDraft(NEW_DRAFT, isBlank(edit) ? null : edit);
+  }, [edit]);
+  // Forget drafts of cards that have since been completed or deleted.
+  useEffect(() => {
+    if (!ready) return;
+    const open = new Set(tasks.filter((t) => !t.done).map((t) => t.id));
+    setDrafts((d) => {
+      const stale = Object.keys(d).filter(
+        (k) => k !== NEW_DRAFT && !open.has(k),
+      );
+      if (!stale.length) return d;
+      const next = { ...d };
+      for (const k of stale) delete next[k];
+      return next;
+    });
+  }, [tasks, ready]);
+  /** Open a card in the editor, picking up any unsaved draft of it. */
+  function openTask(t: Task) {
+    const d = drafts[t.id];
+    setEdit(
+      d ? { ...t, ...Object.fromEntries(EDITABLE.map((k) => [k, d[k]])) } : t,
+    );
+  }
+  useEffect(() => {
+    // Chromium only, in secure contexts; elsewhere the labels stay 1-4.
+    (navigator as any).keyboard
+      ?.getLayoutMap?.()
+      .then((m: Map<string, string>) => {
+        const keys = [1, 2, 3, 4].map((n) => m.get(`Digit${n}`));
+        if (keys.every(Boolean)) setDigitKeys(keys as string[]);
+      })
+      .catch(() => {});
+  }, []);
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), 5 * 60_000);
     return () => clearInterval(tick);
@@ -393,7 +484,7 @@ export default function Home() {
     setOver(null);
     if (!g?.id) return;
     if (!g.moved) {
-      setEdit(g.task);
+      openTask(g.task);
       return;
     }
     const moved = tasksRef.current.find((t) => t.id === g.id)!;
@@ -406,7 +497,11 @@ export default function Home() {
       setError((e as Error).message);
     }
   }
-  function add(q = 0) {
+  function add(quadrant?: number) {
+    const draft = drafts[NEW_DRAFT];
+    // A specific quadrant (1-4 or its + button) moves a waiting draft there.
+    if (draft) return setEdit({ ...draft, q: quadrant ?? draft.q });
+    const q = quadrant ?? 0;
     setEdit({
       id: newId(),
       title: "",
@@ -443,6 +538,7 @@ export default function Home() {
         links: cleanLinks(edit.links),
         ...(isNew ? { created_at: new Date().toISOString() } : {}),
       });
+      setDraft(isNew ? NEW_DRAFT : edit.id, null);
       setEdit(null);
       setError("");
       if (isNew && !prefersReducedMotion()) {
@@ -586,7 +682,7 @@ export default function Home() {
     else if (key === "-" || key === "_") run = () => zoom(0.8);
     else if (e.repeat) return;
     else if (key === "?") run = () => setHelp(true);
-    else if (key === "0" || (e.shiftKey && e.code === "Digit1")) run = fit;
+    else if (key === "0") run = fit;
     else if (/^[1-4]$/.test(key) && ready) run = () => add(+key - 1);
     else if (key === "n" && ready) run = () => add();
     else if (key === "c") run = () => setCompleted(true);
@@ -594,7 +690,7 @@ export default function Home() {
     else if (key === "h") run = () => setMode("hand");
     else if (key === "Escape" && focused) run = () => focused.blur();
     else if (card && ready) {
-      if (key === "e") run = () => setEdit(card);
+      if (key === "e") run = () => openTask(card);
       else if (key === "x") run = () => void complete(card);
       else if (key === "Backspace" || key === "Delete")
         run = () => setConfirmToss(card);
@@ -731,11 +827,11 @@ export default function Home() {
           <button
             className="primary"
             disabled={!ready}
-            title="Add task (N)"
+            title={drafts[NEW_DRAFT] ? "Resume your draft (N)" : "Add task (N)"}
             aria-keyshortcuts="N"
             onClick={() => add()}
           >
-            <Plus size={18} /> Add task
+            <Plus size={18} /> {drafts[NEW_DRAFT] ? "Resume draft" : "Add task"}
           </button>
         </div>
       </header>
@@ -833,7 +929,7 @@ export default function Home() {
                   tabIndex={0}
                   aria-label={`${t.title}. ${quadrants[t.q].name}. Press Enter or E to edit, X to complete, Delete to remove. Alt plus arrow keys moves between quadrants.`}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") setEdit(t);
+                    if (e.key === "Enter") openTask(t);
                     if (
                       e.altKey &&
                       [
@@ -869,6 +965,14 @@ export default function Home() {
                 >
                   <div className="card-top">
                     <div className="chips">
+                      {drafts[t.id] && (
+                        <span
+                          className="chip chip-draft"
+                          title="Has unsaved edits. Open it to pick up where you left off."
+                        >
+                          Draft
+                        </span>
+                      )}
                       {timeUp ? (
                         <button
                           type="button"
@@ -1010,8 +1114,8 @@ export default function Home() {
             )}
         </div>
       </div>
-      <UpdatedToast />
       <footer>
+        <UpdatedToast />
         <div className="toolbox" ref={toolbox}>
           <button
             className={mode === "select" ? "active" : ""}
@@ -1086,6 +1190,7 @@ export default function Home() {
             (() => {
               const saved = tasks.find((t) => t.id === edit.id);
               const age = saved ? ageInfo(saved, now) : null;
+              const dirty = saved ? !sameEdits(edit, saved) : !isBlank(edit);
               return (
                 <form
                   onSubmit={saveEdit}
@@ -1093,6 +1198,13 @@ export default function Home() {
                     if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                       e.preventDefault();
                       e.currentTarget.requestSubmit();
+                    }
+                    // ⌥1-4 picks the quadrant, even mid-typing. Match the
+                    // physical key: on a Mac, ⌥1 types "¡" rather than "1".
+                    const digit = /^Digit([1-4])$/.exec(e.code);
+                    if (e.altKey && !e.metaKey && !e.ctrlKey && digit) {
+                      e.preventDefault();
+                      setEdit({ ...edit, q: +digit[1] - 1 });
                     }
                   }}
                 >
@@ -1109,6 +1221,8 @@ export default function Home() {
                           role="radio"
                           aria-checked={edit.q === i}
                           className={`qp qp-${i} ${edit.q === i ? "on" : ""}`}
+                          title={`${q.name} (⌥${digitKeys[i]})`}
+                          aria-keyshortcuts={`Alt+${i + 1}`}
                           onClick={() => setEdit({ ...edit, q: i })}
                         >
                           <i />
@@ -1240,13 +1354,25 @@ export default function Home() {
                       </span>
                     )}
                     <span className="editor-spacer" />
+                    {dirty && (
+                      <span
+                        className="editor-draft"
+                        title="Close any time; your changes wait here until you save or discard them."
+                      >
+                        <i aria-hidden="true" />
+                        Draft kept
+                      </span>
+                    )}
                     <button
                       type="button"
                       className="editor-cancel"
                       disabled={busy}
-                      onClick={() => setEdit(null)}
+                      onClick={() => {
+                        if (dirty) setDraft(saved ? edit.id : NEW_DRAFT, null);
+                        setEdit(null);
+                      }}
                     >
-                      Cancel
+                      {dirty ? "Discard" : "Cancel"}
                     </button>
                     <button
                       type="submit"
@@ -1311,9 +1437,17 @@ export default function Home() {
                     <div key={label}>
                       <dt>{label}</dt>
                       <dd>
-                        {keys.map((k) => (
-                          <kbd key={k}>{k}</kbd>
-                        ))}
+                        {keys
+                          .flatMap((k) =>
+                            k !== QUAD_KEYS
+                              ? [k]
+                              : digitKeys.join("") === "1234"
+                                ? ["1–4"]
+                                : digitKeys,
+                          )
+                          .map((k) => (
+                            <kbd key={k}>{k}</kbd>
+                          ))}
                       </dd>
                     </div>
                   ))}

@@ -23,8 +23,9 @@ It's based on the **Eisenhower matrix**, a very old and very good trick: ask two
 
 - **Drag cards around** like sticky notes. Pan and zoom the canvas as much as you like.
 - **Jot things down**: every card has room for notes, a due date, and links to whatever you need.
+- **Never lose a half-typed task**: close the editor or the tab mid-thought and your draft is waiting when you come back.
 - **Tick things off** and watch them move to your "Completed" pile.
-- **Keyboard friendly**: <kbd>N</kbd> or <kbd>1</kbd>–<kbd>4</kbd> adds a task, <kbd>E</kbd> / <kbd>X</kbd> / <kbd>⌫</kbd> edit, complete or delete the card under your pointer, and <kbd>Alt</kbd> + arrow keys hop it to another box. Press <kbd>?</kbd> for the full list.
+- **Keyboard friendly**: <kbd>N</kbd> or <kbd>1</kbd>–<kbd>4</kbd> adds a task, <kbd>E</kbd> / <kbd>X</kbd> / <kbd>⌫</kbd> edit, complete or delete the card under your pointer, and <kbd>Alt</kbd> + arrow keys hop it to another box. While editing, <kbd>⌥</kbd> + <kbd>1</kbd>–<kbd>4</kbd> picks the box. Press <kbd>?</kbd> for the full list.
 - **Your tasks are just a spreadsheet.** Everything lives in one plain `tasks.csv` file on your computer.
 
 ## The four boxes

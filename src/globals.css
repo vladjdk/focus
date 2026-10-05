@@ -2148,6 +2148,10 @@ button.chip {
 .updated-toast a:hover {
   text-decoration: underline;
 }
+/* The shared rule pins the dialog's link left; in the toast row, center it. */
+.updated-toast a {
+  align-self: center;
+}
 .update-actions {
   display: flex;
   justify-content: flex-end;
@@ -2185,10 +2189,8 @@ button.chip {
   }
 }
 .updated-toast {
-  position: absolute;
-  z-index: 40;
-  left: 24px;
-  bottom: 24px;
+  /* Stacks above the toolbar in the footer, so it never covers it. */
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2281,4 +2283,24 @@ button.chip {
   border: 1px solid #dce1e8;
   border-bottom-width: 2px;
   border-radius: var(--radius-xs);
+}
+
+/* ---------- Drafts ---------- */
+.chip-draft {
+  background: #fff4e0;
+  color: #9a5b00;
+  font-weight: 700;
+}
+.editor-draft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: #7b8796;
+}
+.editor-draft i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f5a524;
 }
