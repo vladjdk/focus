@@ -12,9 +12,9 @@ test('versions compare numerically, not as text', () => {
 });
 
 test('GitHub remotes resolve to owner/repo', () => {
-  assert.equal(repoSlug('https://github.com/vladjdk/eisenhower-matrix.git\n'), 'vladjdk/eisenhower-matrix');
-  assert.equal(repoSlug('git@github.com:vladjdk/eisenhower-matrix.git'), 'vladjdk/eisenhower-matrix');
-  assert.equal(repoSlug('https://github.com/vladjdk/eisenhower-matrix'), 'vladjdk/eisenhower-matrix');
+  assert.equal(repoSlug('https://github.com/vladjdk/focus.git\n'), 'vladjdk/focus');
+  assert.equal(repoSlug('git@github.com:vladjdk/focus.git'), 'vladjdk/focus');
+  assert.equal(repoSlug('https://github.com/vladjdk/focus'), 'vladjdk/focus');
   assert.equal(repoSlug('https://example.com/a/b.git'), null);
 });
 

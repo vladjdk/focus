@@ -35,7 +35,7 @@ A per-user LaunchAgent starts the board at login and restarts it if it crashes.
 
 ```sh
 npm install && npm run build
-npm run service:install        # installs ~/Library/LaunchAgents/local.eisenhower-matrix.plist and starts it
+npm run service:install        # installs ~/Library/LaunchAgents/local.focus.plist and starts it
 ```
 
 Then bookmark http://127.0.0.1:5180.
@@ -58,12 +58,12 @@ PORT=5180 DATA_FILE=/path/to/tasks.csv NODE=/path/to/node npm run service:instal
 ## Run it all the time (Linux, systemd)
 
 ```ini
-# ~/.config/systemd/user/eisenhower-matrix.service
+# ~/.config/systemd/user/focus.service
 [Unit]
-Description=Eisenhower matrix board
+Description=Focus board
 
 [Service]
-WorkingDirectory=/path/to/eisenhower-matrix
+WorkingDirectory=/path/to/focus
 ExecStart=/usr/bin/node server.mjs
 Environment=PORT=5180
 Restart=always
@@ -73,7 +73,7 @@ WantedBy=default.target
 ```
 
 ```sh
-systemctl --user enable --now eisenhower-matrix
+systemctl --user enable --now focus
 ```
 
 ## Updating

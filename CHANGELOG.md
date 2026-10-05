@@ -4,6 +4,7 @@ One short bullet per change, newest release first. Add yours under **Unreleased*
 
 ## Unreleased
 
+- The project is now called Focus on GitHub (github.com/vladjdk/focus); old links and old copies keep working
 - Drafts: close the editor or the tab mid-thought and what you typed is waiting when you come back (thanks @adairrr)
 - ⌥1–4 picks a task's quadrant while you're editing it, labelled for your keyboard layout (thanks @adairrr)
 - The "Updated" note sits above the toolbar instead of covering it, with its link lined up (thanks @adairrr)

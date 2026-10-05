@@ -134,6 +134,6 @@ server.on('error', e => {
   throw e;
 });
 server.listen(PORT, HOST, () => {
-  console.log(`Eisenhower board v${updater.current} on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}${dev ? ' (dev)' : ''}`);
+  console.log(`Focus v${updater.current} on http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}${dev ? ' (dev)' : ''}`);
   console.log(`Data file: ${DATA_FILE}`);
 });

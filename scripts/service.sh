@@ -5,7 +5,9 @@
 # Optional env: PORT (default 5180), DATA_FILE (default ./data/tasks.csv), NODE (default: node on PATH)
 set -eu
 
-LABEL="local.eisenhower-matrix"
+LABEL="local.focus"
+# The service was called this before the project was renamed.
+OLD_LABEL="local.eisenhower-matrix"
 DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 DOMAIN="gui/$(id -u)"
@@ -41,6 +43,12 @@ case "${1:-}" in
 </plist>
 PLIST
     launchctl bootout "$DOMAIN" "$PLIST" 2>/dev/null || true
+    # Retire the old-name service so two copies never fight over the port.
+    OLD_PLIST="$HOME/Library/LaunchAgents/$OLD_LABEL.plist"
+    if [ -f "$OLD_PLIST" ]; then
+      launchctl bootout "$DOMAIN" "$OLD_PLIST" 2>/dev/null || true
+      rm -f "$OLD_PLIST"
+    fi
     launchctl bootstrap "$DOMAIN" "$PLIST"
     echo "Installed $LABEL → http://127.0.0.1:$PORT (data: $DATA_FILE)"
     ;;
